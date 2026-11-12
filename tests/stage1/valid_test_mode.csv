@@ -1,0 +1,6 @@
+Name,A
+Url,tests/stage3/sample_graph.txt
+IsTestMode,true
+Version,0.1.0
+OutputFileName,test_graph.png
+MaxDepth,5

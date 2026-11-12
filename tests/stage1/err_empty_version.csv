@@ -1,0 +1,6 @@
+Name,serde
+Url,https://github.com/serde-rs/serde
+IsTestMode,false
+Version,   
+OutputFileName,graph.png
+MaxDepth,3
