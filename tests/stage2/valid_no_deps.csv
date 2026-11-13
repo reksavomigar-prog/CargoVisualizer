@@ -1,0 +1,6 @@
+Name,scopeguard
+Url,https://crates.io
+IsTestMode,false
+Version,1.2.0
+OutputFileName,scopeguard_graph.png
+MaxDepth,2

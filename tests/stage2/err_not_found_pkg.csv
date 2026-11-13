@@ -1,0 +1,6 @@
+Name,non_existent_crate_xyz_99999
+Url,https://crates.io
+IsTestMode,false
+Version,1.0.0
+OutputFileName,graph.png
+MaxDepth,2

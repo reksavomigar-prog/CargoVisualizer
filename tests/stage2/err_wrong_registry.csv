@@ -1,0 +1,6 @@
+Name,serde
+Url,https://www.rust-lang.org
+IsTestMode,false
+Version,1.0.195
+OutputFileName,graph.png
+MaxDepth,2

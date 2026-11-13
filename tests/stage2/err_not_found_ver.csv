@@ -1,0 +1,6 @@
+Name,serde
+Url,https://crates.io
+IsTestMode,false
+Version,999.999.999
+OutputFileName,graph.png
+MaxDepth,2

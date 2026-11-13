@@ -1,0 +1,6 @@
+Name,tokio
+Url,https://crates.io
+IsTestMode,false
+Version,1.36.0
+OutputFileName,tokio_graph.png
+MaxDepth,2

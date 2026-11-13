@@ -1,0 +1,6 @@
+Name,serde
+Url,https://nonexistent.crates-registry.invalid
+IsTestMode,false
+Version,1.0.195
+OutputFileName,graph.png
+MaxDepth,2

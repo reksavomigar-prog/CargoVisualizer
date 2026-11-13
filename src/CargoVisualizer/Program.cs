@@ -1,4 +1,5 @@
 ﻿using CargoVisualizer.Configuration;
+using CargoVisualizer.Dependencies;
 
 namespace CargoVisualizer;
 
@@ -11,11 +12,11 @@ internal static class Program
     private const int MaxArgsCount = 1;
 
     /// <summary>
-    /// Запускает чтение конфигурации, валидацию параметров и вывод настроек в консоль.
+    /// Запускает загрузку конфигурации, получение метаданных из реестра Cargo и вывод прямых зависимостей.
     /// </summary>
     /// <param name="args">Аргументы командной строки (опциональный путь к CSV-файлу конфигурации).</param>
-    /// <returns>Код завершения процесса: 0 при успехе, 1 при ошибке конфигурации.</returns>
-    private static int Main(string[] args)
+    /// <returns>Код завершения процесса: 0 при успехе, 1 при ошибке конфигурации, сети или формата данных.</returns>
+    private static async Task<int> Main(string[] args)
     {
         string path;
         try
@@ -31,17 +32,19 @@ internal static class Program
             else
             {
                 throw new ArgumentException(
-                    $"Превышено количество аргументов. CargoVisualizer не принимает больше {MaxArgsCount} аргумента(-ов)");
+                    "Превышено количество аргументов. " +
+                    $"CargoVisualizer принимает не более {MaxArgsCount} аргумента(-ов)");
             }
 
             var dict = CsvConfigReader.Read(path);
             var appConfig = ConfigValidator.Validate(dict);
-            Console.WriteLine($"Name: {appConfig.Name}");
-            Console.WriteLine($"Url: {appConfig.Url}");
-            Console.WriteLine($"IsTestMode: {appConfig.IsTestMode}");
-            Console.WriteLine($"Version: {appConfig.Version}");
-            Console.WriteLine($"OutputFileName: {appConfig.OutputFileName}");
-            Console.WriteLine($"MaxDepth: {appConfig.MaxDepth}");
+            CargoRegistryClient cargoRegistryClient = new();
+            string fetchedDependenciesJson = await cargoRegistryClient.FetchDependenciesJsonAsync(
+                appConfig.Url,
+                appConfig.Name,
+                appConfig.Version);
+            IReadOnlyList<PackageDependency> dependenciesList = CargoDependencyParser.Parse(fetchedDependenciesJson);
+            WriteDependencyList(appConfig, dependenciesList);
         }
         catch (Exception e)
         {
@@ -50,5 +53,28 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Выводит в стандартный поток вывода таблицу прямых зависимостей анализируемого пакета.
+    /// </summary>
+    /// <param name="appConfig">Проверенная конфигурация приложения с именем и версией пакета.</param>
+    /// <param name="dependencyList">Список прямых зависимостей пакета.</param>
+    private static void WriteDependencyList(
+        AppConfig appConfig,
+        IReadOnlyList<PackageDependency> dependencyList)
+    {
+        Console.WriteLine($"Прямые зависимости пакета {appConfig.Name} ({appConfig.Version}):");
+        if (!dependencyList.Any())
+        {
+            Console.WriteLine("Прямые зависимости отсутствуют.");
+            return;
+        }
+
+        Console.WriteLine("Имя | Версия | Тип зависимости");
+        foreach (var dep in dependencyList)
+        {
+            Console.WriteLine($"{dep.Name} | {dep.VersionRequirement} | {dep.Kind}");
+        }
     }
 }
