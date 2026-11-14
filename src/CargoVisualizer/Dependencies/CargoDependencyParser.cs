@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace CargoVisualizer.Dependencies;
 
 /// <summary>
-/// Предоставляет методы для синтаксического анализа JSON-ответа реестра Cargo и извлечения прямых зависимостей.
+/// Предоставляет методы для синтаксического анализа JSON-ответа реестра Cargo и извлечения метаданных пакетов.
 /// </summary>
 public static class CargoDependencyParser
 {
@@ -11,6 +11,9 @@ public static class CargoDependencyParser
     public const string KeyName = "crate_id";
     public const string KeyVersionRequirement = "req";
     public const string KeyKind = "kind";
+    public const string KeyCrate = "crate";
+    public const string KeyMaxVersion = "max_version";
+    public const string KeyMaxStableVersion = "max_stable_version";
 
     /// <summary>
     /// Разбирает JSON-строку ответа API реестра пакетов и формирует список прямых зависимостей.
@@ -51,6 +54,48 @@ public static class CargoDependencyParser
         throw new FormatException("Корневой объект не валиден");
     }
 
+    /// <summary>
+    /// Извлекает актуальную конкретную версию пакета из JSON-ответа метаданных крейта.
+    /// </summary>
+    /// <param name="json">Сырая JSON-строка ответа эндпоинта метаданных крейта.</param>
+    /// <returns>Строка с наиболее актуальной версией пакета.</returns>
+    /// <exception cref="ArgumentException">Выбрасывается, если входная строка JSON пуста.</exception>
+    /// <exception cref="FormatException">
+    /// Выбрасывается, если структура JSON нарушена или не удалось определить версию пакета.
+    /// </exception>
+    public static string ParseLatestVersion(string json)
+    {
+        using JsonDocument parsedDoc = ValidateJson(json);
+
+        JsonElement root = parsedDoc.RootElement;
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            if (root.TryGetProperty(KeyCrate, out JsonElement crateStruct))
+            {
+                if (crateStruct.ValueKind == JsonValueKind.Object)
+                {
+                    if (TryGetNonEmptyString(crateStruct, KeyMaxStableVersion, out string stableVersion))
+                    {
+                        return stableVersion;
+                    }
+
+                    if (TryGetNonEmptyString(crateStruct, KeyMaxVersion, out string latestVersion))
+                    {
+                        return latestVersion;
+                    }
+
+                    throw new FormatException($"Не удалось определить актуальную версию пакета в блоке '{KeyCrate}'.");
+                }
+
+                throw new FormatException($"Поле '{KeyCrate}' не является json-объектом");
+            }
+
+            throw new FormatException($"Поле '{KeyCrate}' не найдено в переданном файле");
+        }
+
+        throw new FormatException("Корневой объект не валиден");
+    }
+
     private static JsonDocument ValidateJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -84,6 +129,23 @@ public static class CargoDependencyParser
         }
 
         throw new FormatException($"Ключ {propertyName} не был найден в json");
+    }
+
+    private static bool TryGetNonEmptyString(JsonElement obj, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (obj.TryGetProperty(propertyName, out JsonElement property)
+            && property.ValueKind == JsonValueKind.String)
+        {
+            string? raw = property.GetString();
+            if (!string.IsNullOrWhiteSpace(raw))
+            {
+                value = raw.Trim();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static PackageDependency ParseDependencyItem(JsonElement item)

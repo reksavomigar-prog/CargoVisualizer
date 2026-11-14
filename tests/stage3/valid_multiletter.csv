@@ -1,0 +1,6 @@
+Name,AA
+Url,tests/stage3/repo_branching.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,branching.png
+MaxDepth,3

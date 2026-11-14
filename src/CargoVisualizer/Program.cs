@@ -1,5 +1,6 @@
 ﻿using CargoVisualizer.Configuration;
 using CargoVisualizer.Dependencies;
+using CargoVisualizer.Graph;
 
 namespace CargoVisualizer;
 
@@ -12,7 +13,7 @@ internal static class Program
     private const int MaxArgsCount = 1;
 
     /// <summary>
-    /// Запускает загрузку конфигурации, получение метаданных из реестра Cargo и вывод прямых зависимостей.
+    /// Запускает загрузку конфигурации, построение транзитивного графа зависимостей и его вывод в консоль.
     /// </summary>
     /// <param name="args">Аргументы командной строки (опциональный путь к CSV-файлу конфигурации).</param>
     /// <returns>Код завершения процесса: 0 при успехе, 1 при ошибке конфигурации, сети или формата данных.</returns>
@@ -38,13 +39,11 @@ internal static class Program
 
             var dict = CsvConfigReader.Read(path);
             var appConfig = ConfigValidator.Validate(dict);
-            CargoRegistryClient cargoRegistryClient = new();
-            string fetchedDependenciesJson = await cargoRegistryClient.FetchDependenciesJsonAsync(
-                appConfig.Url,
-                appConfig.Name,
-                appConfig.Version);
-            IReadOnlyList<PackageDependency> dependenciesList = CargoDependencyParser.Parse(fetchedDependenciesJson);
-            WriteDependencyList(appConfig, dependenciesList);
+
+            IDependencyProvider dependencyProvider = ResolveDependencyProvider(appConfig);
+            DependencyGraphBuilder graphBuilder = new(dependencyProvider);
+            DependencyGraph dependencyGraph = await graphBuilder.BuildAsync(appConfig.Name, appConfig.MaxDepth);
+            WriteDependencyGraph(dependencyGraph);
         }
         catch (Exception e)
         {
@@ -56,25 +55,42 @@ internal static class Program
     }
 
     /// <summary>
-    /// Выводит в стандартный поток вывода таблицу прямых зависимостей анализируемого пакета.
+    /// Выводит в стандартный поток вывода построенный граф зависимостей в виде списка смежности.
     /// </summary>
-    /// <param name="appConfig">Проверенная конфигурация приложения с именем и версией пакета.</param>
-    /// <param name="dependencyList">Список прямых зависимостей пакета.</param>
-    private static void WriteDependencyList(
-        AppConfig appConfig,
-        IReadOnlyList<PackageDependency> dependencyList)
+    /// <param name="dependencyGraph">Построенный граф зависимостей пакетов.</param>
+    private static void WriteDependencyGraph(DependencyGraph dependencyGraph)
     {
-        Console.WriteLine($"Прямые зависимости пакета {appConfig.Name} ({appConfig.Version}):");
-        if (!dependencyList.Any())
+        Console.WriteLine("==============DEPENDENCIES TREE==============");
+        foreach (var package in dependencyGraph.Packages)
         {
-            Console.WriteLine("Прямые зависимости отсутствуют.");
-            return;
-        }
+            string dependencies = string.Join(", ", dependencyGraph.GetDirectDependencies(package));
 
-        Console.WriteLine("Имя | Версия | Тип зависимости");
-        foreach (var dep in dependencyList)
+            if (string.IsNullOrWhiteSpace(dependencies))
+            {
+                Console.WriteLine($"{package} -> (нет зависимостей)");
+                continue;
+            }
+
+            Console.WriteLine($"{package} -> {dependencies}");
+        }
+    }
+
+    /// <summary>
+    /// Создает поставщика прямых зависимостей в соответствии с выбранным режимом работы приложения.
+    /// </summary>
+    /// <param name="config">Проверенная конфигурация приложения.</param>
+    /// <returns>Реализация <see cref="IDependencyProvider"/> для тестового или удаленного репозитория.</returns>
+    private static IDependencyProvider ResolveDependencyProvider(AppConfig config)
+    {
+        if (config.IsTestMode)
         {
-            Console.WriteLine($"{dep.Name} | {dep.VersionRequirement} | {dep.Kind}");
+            var dict = TestRepositoryReader.Read(config.Url);
+            return new TestRepositoryDependencyProvider(dict, config.Name);
+        }
+        else
+        {
+            CargoRegistryClient client = new();
+            return new CargoRegistryDependencyProvider(client, config.Url, config.Name, config.Version);
         }
     }
 }

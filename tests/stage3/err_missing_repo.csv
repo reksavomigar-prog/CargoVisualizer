@@ -1,0 +1,6 @@
+Name,A
+Url,tests/stage3/not_found_repo.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,graph.png
+MaxDepth,2
