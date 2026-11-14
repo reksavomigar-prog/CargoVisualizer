@@ -1,0 +1,6 @@
+Name,D
+Url,tests/stage4/repo_diamond_cycle.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_depth1.png
+MaxDepth,1

@@ -1,0 +1,6 @@
+Name,GG
+Url,tests/stage4/repo_branching.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_branching.png
+MaxDepth,4

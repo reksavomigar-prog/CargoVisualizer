@@ -1,0 +1,6 @@
+Name,D
+Url,tests/stage4/not_found_repo.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_err_file.png
+MaxDepth,3

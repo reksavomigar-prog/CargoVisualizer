@@ -1,0 +1,6 @@
+Name,A
+Url,tests/stage4/repo_mutual_cycle.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_cycle.png
+MaxDepth,5

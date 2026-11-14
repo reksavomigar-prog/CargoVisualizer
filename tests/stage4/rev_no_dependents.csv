@@ -1,0 +1,6 @@
+Name,A
+Url,tests/stage4/repo_dag.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_no_deps.png
+MaxDepth,3

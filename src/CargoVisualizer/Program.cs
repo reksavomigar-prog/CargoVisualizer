@@ -5,7 +5,7 @@ using CargoVisualizer.Graph;
 namespace CargoVisualizer;
 
 /// <summary>
-/// Точка входа CLI-приложения визуализации графа зависимостей пакетов Cargo.
+/// Точка входа CLI-приложения визуализации и анализа графа зависимостей пакетов Cargo.
 /// </summary>
 internal static class Program
 {
@@ -13,10 +13,10 @@ internal static class Program
     private const int MaxArgsCount = 1;
 
     /// <summary>
-    /// Запускает загрузку конфигурации, построение транзитивного графа зависимостей и его вывод в консоль.
+    /// Запускает загрузку конфигурации, построение графа зависимостей и его вывод в консоль.
     /// </summary>
     /// <param name="args">Аргументы командной строки (опциональный путь к CSV-файлу конфигурации).</param>
-    /// <returns>Код завершения процесса: 0 при успехе, 1 при ошибке конфигурации, сети или формата данных.</returns>
+    /// <returns>Код завершения процесса: 0 при успехе, 1 при ошибке конфигурации, сети или данных.</returns>
     private static async Task<int> Main(string[] args)
     {
         string path;
@@ -43,7 +43,7 @@ internal static class Program
             IDependencyProvider dependencyProvider = ResolveDependencyProvider(appConfig);
             DependencyGraphBuilder graphBuilder = new(dependencyProvider);
             DependencyGraph dependencyGraph = await graphBuilder.BuildAsync(appConfig.Name, appConfig.MaxDepth);
-            WriteDependencyGraph(dependencyGraph);
+            WriteDependencyGraph(dependencyGraph, appConfig.IsTestMode);
         }
         catch (Exception e)
         {
@@ -58,16 +58,22 @@ internal static class Program
     /// Выводит в стандартный поток вывода построенный граф зависимостей в виде списка смежности.
     /// </summary>
     /// <param name="dependencyGraph">Построенный граф зависимостей пакетов.</param>
-    private static void WriteDependencyGraph(DependencyGraph dependencyGraph)
+    /// <param name="isReverse">Признак режима обратных зависимостей.</param>
+    private static void WriteDependencyGraph(DependencyGraph dependencyGraph, bool isReverse)
     {
-        Console.WriteLine("==============DEPENDENCIES TREE==============");
+        string header = isReverse
+            ? "==============REVERSE DEPENDENCIES TREE=============="
+            : "==============DEPENDENCIES TREE==============";
+        string emptyLabel = isReverse ? "(нет обратных зависимостей)" : "(нет зависимостей)";
+
+        Console.WriteLine(header);
         foreach (var package in dependencyGraph.Packages)
         {
             string dependencies = string.Join(", ", dependencyGraph.GetDirectDependencies(package));
 
             if (string.IsNullOrWhiteSpace(dependencies))
             {
-                Console.WriteLine($"{package} -> (нет зависимостей)");
+                Console.WriteLine($"{package} -> {emptyLabel}");
                 continue;
             }
 
@@ -76,7 +82,7 @@ internal static class Program
     }
 
     /// <summary>
-    /// Создает поставщика прямых зависимостей в соответствии с выбранным режимом работы приложения.
+    /// Создает поставщика зависимостей в соответствии с выбранным режимом работы приложения.
     /// </summary>
     /// <param name="config">Проверенная конфигурация приложения.</param>
     /// <returns>Реализация <see cref="IDependencyProvider"/> для тестового или удаленного репозитория.</returns>
@@ -85,7 +91,7 @@ internal static class Program
         if (config.IsTestMode)
         {
             var dict = TestRepositoryReader.Read(config.Url);
-            return new TestRepositoryDependencyProvider(dict, config.Name);
+            return new ReverseTestRepositoryDependencyProvider(dict, config.Name);
         }
         else
         {

@@ -1,0 +1,6 @@
+Name,Z
+Url,tests/stage4/repo_diamond_cycle.txt
+IsTestMode,true
+Version,1.0.0
+OutputFileName,rev_err_pkg.png
+MaxDepth,3
